@@ -7,7 +7,8 @@ import { getDownloads, getDownloadsBulk, getDownloadsRange } from './downloads.t
 import type { DownloadsPoint, DownloadsRange } from './downloads.types.ts';
 import type { NpmClient } from './client.ts';
 import { NpmApiError } from './error.ts';
-import { isDeprecated } from './helpers.ts';
+import { getPeerDependencies, isDeprecated } from './helpers.ts';
+import type { PeerDependency } from './helpers.ts';
 import type { AbbreviatedPackument, DistTags, PackageVersion, Packument } from './package.types.ts';
 import { getAbbreviatedPackage, getDistTags, getLatestVersion, getPackage, getVersion } from './packages.ts';
 import { searchPackages } from './search.ts';
@@ -170,6 +171,18 @@ describe('registry (live)', () => {
 
     // THEN
     assert.deepEqual(results, [true, false]);
+  });
+
+  it('should get peer dependencies with their optional flag', async () => {
+    // GIVEN
+    const name: string = '@angular/core';
+
+    // WHEN
+    const result: Record<string, PeerDependency> = await getPeerDependencies(name);
+
+    // THEN
+    assert.equal(result['rxjs']?.optional, false);
+    assert.equal(result['zone.js']?.optional, true);
   });
 
   it('should work through a client', async () => {

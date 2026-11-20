@@ -1,6 +1,7 @@
 import { getDownloads, getDownloadsBulk, getDownloadsRange } from './downloads.ts';
 import type { DownloadPeriod, DownloadsPoint, DownloadsRange } from './downloads.types.ts';
-import { isDeprecated } from './helpers.ts';
+import { getPeerDependencies, isDeprecated } from './helpers.ts';
+import type { PeerDependency } from './helpers.ts';
 import type { NpmApiOptions } from './options.ts';
 import type { AbbreviatedPackument, DistTags, PackageVersion, Packument } from './package.types.ts';
 import { getAbbreviatedPackage, getDistTags, getLatestVersion, getPackage, getVersion } from './packages.ts';
@@ -24,6 +25,7 @@ export interface NpmClient {
     options?: NpmApiOptions,
   ): Promise<Record<string, DownloadsPoint | null>>;
   isDeprecated(name: string, versionOrTag?: string, options?: NpmApiOptions): Promise<boolean>;
+  getPeerDependencies(name: string, versionOrTag?: string, options?: NpmApiOptions): Promise<Record<string, PeerDependency>>;
 }
 
 // Per-call options win; headers are merged (per-call headers win too)
@@ -64,5 +66,6 @@ export const createNpmClient: (defaults?: NpmApiOptions) => NpmClient = (default
     getDownloadsRange: (name, period, options) => getDownloadsRange(name, period, withDefaults(options)),
     getDownloadsBulk: (names, period, options) => getDownloadsBulk(names, period, withDefaults(options)),
     isDeprecated: (name, versionOrTag, options) => isDeprecated(name, versionOrTag, withDefaults(options)),
+    getPeerDependencies: (name, versionOrTag, options) => getPeerDependencies(name, versionOrTag, withDefaults(options)),
   };
 };
