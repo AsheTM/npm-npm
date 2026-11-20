@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import { getDownloads, getDownloadsRange, isDownloadPeriod } from './downloads.ts';
+import { getDownloads, getDownloadsBulk, getDownloadsRange, isDownloadPeriod } from './downloads.ts';
 import type { DownloadPeriod, DownloadsPoint, DownloadsRange } from './downloads.types.ts';
 import { NpmApiError } from './error.ts';
 import { fakeFetch, jsonResponse } from './testing/fetch.ts';
@@ -186,5 +186,156 @@ describe('getDownloadsRange', () => {
 
     // THEN
     await assert.rejects(promise, hasCode('invalid-response'));
+  });
+});
+
+describe('getDownloadsBulk', () => {
+  // Answers bulk URLs with a map (unknown names → null, `nope*` names), single names like `getDownloads`
+  const bulkFetch: () => FakeFetch = () =>
+    fakeFetch((url) => {
+      const names: string[] = url.split('/').slice(6).join('/').split(',');
+
+      if (names.length === 1) {
+        return names[0]!.startsWith('nope') || names[0]!.startsWith('@nope')
+          ? jsonResponse({ error: 'not found' }, { status: 404 })
+          : jsonResponse(pointDocument(names[0]!));
+      }
+
+      return jsonResponse(Object.fromEntries(names.map((name) => [name, name.startsWith('nope') ? null : pointDocument(name)])));
+    });
+
+  it('should get unscoped names in one request', async () => {
+    // GIVEN
+    const fake: FakeFetch = bulkFetch();
+
+    // WHEN
+    const result: Record<string, DownloadsPoint | null> = await getDownloadsBulk(['react', 'vue', 'nope'], 'last-month', {
+      fetch: fake.fetch,
+    });
+
+    // THEN
+    assert.deepEqual(
+      fake.calls.map((call) => call.url),
+      ['https://api.npmjs.org/downloads/point/last-month/react,vue,nope'],
+    );
+    assert.deepEqual(result, { react: pointDocument('react'), vue: pointDocument('vue'), nope: null });
+  });
+
+  it('should send one request per scoped name and keep the input order', async () => {
+    // GIVEN
+    const fake: FakeFetch = bulkFetch();
+
+    // WHEN
+    const result: Record<string, DownloadsPoint | null> = await getDownloadsBulk(['@angular/core', 'react', '@nope/x', 'vue'], undefined, {
+      fetch: fake.fetch,
+    });
+
+    // THEN
+    assert.deepEqual(fake.calls.map((call) => call.url).sort(), [
+      'https://api.npmjs.org/downloads/point/last-week/@angular/core',
+      'https://api.npmjs.org/downloads/point/last-week/@nope/x',
+      'https://api.npmjs.org/downloads/point/last-week/react,vue',
+    ]);
+    assert.deepEqual(Object.keys(result), ['@angular/core', 'react', '@nope/x', 'vue']);
+    assert.equal(result['@nope/x'], null);
+    assert.deepEqual(result['@angular/core'], pointDocument('@angular/core'));
+  });
+
+  it('should split unscoped names in batches of 128', async () => {
+    // GIVEN
+    const fake: FakeFetch = bulkFetch();
+    const names: string[] = Array.from({ length: 300 }, (_, index) => `pkg-${index}`);
+
+    // WHEN
+    const result: Record<string, DownloadsPoint | null> = await getDownloadsBulk(names, 'last-day', { fetch: fake.fetch });
+
+    // THEN
+    assert.deepEqual(
+      fake.calls.map((call) => call.url.split('/').pop()!.split(',').length),
+      [128, 128, 44],
+    );
+    assert.equal(Object.keys(result).length, 300);
+  });
+
+  it('should ask a single unscoped name like `getDownloads` (npm answers without a map)', async () => {
+    // GIVEN
+    const fake: FakeFetch = bulkFetch();
+
+    // WHEN
+    const result: Record<string, DownloadsPoint | null> = await getDownloadsBulk(['react', 'react'], 'last-day', { fetch: fake.fetch });
+
+    // THEN
+    assert.equal(fake.calls.length, 1);
+    assert.deepEqual(result, { react: pointDocument('react') });
+  });
+
+  it('should return an empty object without any request', async () => {
+    // GIVEN
+    const fake: FakeFetch = bulkFetch();
+
+    // WHEN
+    const result: Record<string, DownloadsPoint | null> = await getDownloadsBulk([], 'last-day', { fetch: fake.fetch });
+
+    // THEN
+    assert.deepEqual(result, {});
+    assert.equal(fake.calls.length, 0);
+  });
+
+  it('should throw `invalid-name` for one bad name without any request', async () => {
+    // GIVEN
+    const fake: FakeFetch = bulkFetch();
+
+    // WHEN
+    const promise: Promise<Record<string, DownloadsPoint | null>> = getDownloadsBulk(['react', '../x'], 'last-day', { fetch: fake.fetch });
+
+    // THEN
+    await assert.rejects(promise, hasCode('invalid-name'));
+    assert.equal(fake.calls.length, 0);
+  });
+
+  it('should reject on an error other than `not-found`', async () => {
+    // GIVEN
+    const fake: FakeFetch = fakeFetch(() => jsonResponse({ error: 'exceeded max days of 365 for bulk query' }, { status: 400 }));
+
+    // WHEN
+    const promise: Promise<Record<string, DownloadsPoint | null>> = getDownloadsBulk(['react', 'vue'], '2025-01-01:2026-11-01', {
+      fetch: fake.fetch,
+    });
+
+    // THEN
+    await assert.rejects(promise, hasCode('http'));
+  });
+
+  it('should throw `invalid-response` for a broken entry', async () => {
+    // GIVEN
+    const fake: FakeFetch = fakeFetch(() => jsonResponse({ react: { downloads: 'many' }, vue: null }));
+
+    // WHEN
+    const promise: Promise<Record<string, DownloadsPoint | null>> = getDownloadsBulk(['react', 'vue'], 'last-day', { fetch: fake.fetch });
+
+    // THEN
+    await assert.rejects(promise, hasCode('invalid-response'));
+  });
+
+  it('should send at most 4 requests at a time', async () => {
+    // GIVEN
+    let running: number = 0;
+    let maxRunning: number = 0;
+    const fake: FakeFetch = fakeFetch(async (url) => {
+      running++;
+      maxRunning = Math.max(maxRunning, running);
+      await new Promise((resolve) => setTimeout(resolve, 5));
+      running--;
+
+      return jsonResponse(pointDocument(url.split('/').slice(6).join('/')));
+    });
+    const names: string[] = Array.from({ length: 10 }, (_, index) => `@scope/pkg-${index}`);
+
+    // WHEN
+    await getDownloadsBulk(names, 'last-day', { fetch: fake.fetch });
+
+    // THEN
+    assert.equal(fake.calls.length, 10);
+    assert.equal(maxRunning, 4);
   });
 });
