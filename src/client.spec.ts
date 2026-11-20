@@ -123,6 +123,22 @@ describe('createNpmClient', () => {
     assert.equal(fake.calls[0]?.url, `${MIRROR}/react/latest`);
   });
 
+  it('should retry with the default `retry` option', async () => {
+    // GIVEN
+    let count: number = 0;
+    const fake: FakeFetch = fakeFetch(() =>
+      count++ === 0 ? jsonResponse({}, { status: 429, headers: { 'retry-after': '0' } }) : jsonResponse({ latest: '1.0.0' }),
+    );
+    const client: NpmClient = createNpmClient({ fetch: fake.fetch, retry: true });
+
+    // WHEN
+    const result: string = await client.getLatestVersion('react');
+
+    // THEN
+    assert.equal(result, '1.0.0');
+    assert.equal(fake.calls.length, 2);
+  });
+
   it('should let per-call options override the defaults', async () => {
     // GIVEN
     const fake: FakeFetch = registryFetch();
