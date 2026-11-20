@@ -3,6 +3,8 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
 import { createNpmClient } from './client.ts';
+import { getDownloads, getDownloadsRange } from './downloads.ts';
+import type { DownloadsPoint, DownloadsRange } from './downloads.types.ts';
 import type { NpmClient } from './client.ts';
 import { NpmApiError } from './error.ts';
 import type { AbbreviatedPackument, DistTags, PackageVersion, Packument } from './package.types.ts';
@@ -112,6 +114,35 @@ describe('registry (live)', () => {
     assert.ok(result.objects.length <= 5);
     assert.ok(result.objects.some((object) => object.package.name === '@ashetm/platform'));
     assert.equal(typeof result.objects[0]?.dependents, 'number');
+  });
+
+  it('should get downloads of a scoped package', async () => {
+    // GIVEN
+    const name: string = '@angular/core';
+
+    // WHEN
+    const point: DownloadsPoint = await getDownloads(name, 'last-week');
+    const range: DownloadsRange = await getDownloadsRange(name, 'last-week');
+
+    // THEN
+    assert.equal(point.package, name);
+    assert.ok(point.downloads > 0);
+    assert.equal(range.downloads.length, 7);
+    assert.equal(
+      range.downloads.reduce((total, day) => total + day.downloads, 0),
+      point.downloads,
+    );
+  });
+
+  it('should throw `not-found` for downloads of an unknown package', async () => {
+    // GIVEN
+    const name: string = 'this-package-does-not-exist-zzq';
+
+    // WHEN
+    const promise: Promise<DownloadsPoint> = getDownloads(name, 'last-day');
+
+    // THEN
+    await assert.rejects(promise, hasCode('not-found'));
   });
 
   it('should work through a client', async () => {

@@ -14,11 +14,16 @@ describe('index', () => {
       'createNpmClient',
       'getAbbreviatedPackage',
       'getDistTags',
+      'getDownloads',
+      'getDownloadsRange',
       'getLatestVersion',
       'getPackage',
       'getVersion',
+      'isDownloadPeriod',
       'isValidPackageName',
       'searchPackages',
+      'toDownloadDate',
+      'toDownloadPeriod',
     ];
 
     // WHEN

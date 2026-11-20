@@ -1,5 +1,15 @@
+export { toDownloadDate, toDownloadPeriod } from './download-period.ts';
 export { createNpmClient } from './client.ts';
 export type { NpmClient } from './client.ts';
+export { getDownloads, getDownloadsRange, isDownloadPeriod } from './downloads.ts';
+export type {
+  DailyDownloads,
+  DownloadDate,
+  DownloadPeriod,
+  DownloadsPoint,
+  DownloadsRange,
+  NamedDownloadPeriod,
+} from './downloads.types.ts';
 export { NpmApiError } from './error.ts';
 export type { NpmApiErrorCode, NpmApiErrorInit } from './error.ts';
 export { isValidPackageName } from './name.ts';
