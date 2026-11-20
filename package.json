@@ -1,0 +1,79 @@
+{
+  "name": "@ashetm/npm",
+  "version": "0.0.0",
+  "description": "Small, typed client for npm's official public APIs (package metadata, versions, search, download counts), built on fetch and safe on the server.",
+  "contributors": [
+    {
+      "email": "contact@ashetm.com",
+      "name": "DAWOUD Haitham",
+      "url": "http://ashetm.com"
+    }
+  ],
+  "author": {
+    "email": "contact@ashetm.com",
+    "name": "DAWOUD Haitham",
+    "url": "http://ashetm.com"
+  },
+  "keywords": [
+    "api",
+    "client",
+    "dist-tags",
+    "downloads",
+    "fetch",
+    "isomorphic",
+    "js",
+    "npm",
+    "npm-api",
+    "package",
+    "packument",
+    "registry",
+    "search",
+    "ssr",
+    "ts",
+    "typed",
+    "versions"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/AsheTM/npm-npm.git"
+  },
+  "bugs": {
+    "url": "https://github.com/AsheTM/npm-npm/issues"
+  },
+  "homepage": "https://github.com/AsheTM/npm-npm#readme",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "sideEffects": false,
+  "publishConfig": {
+    "access": "public"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "packageManager": "yarn@4.3.1",
+  "scripts": {
+    "build": "rm -rf dist && tsc -p tsconfig.build.json",
+    "test": "node --test \"src/**/*.spec.ts\"",
+    "typecheck": "tsc -p tsconfig.json",
+    "prepublishOnly": "yarn typecheck && yarn test && yarn build"
+  },
+  "dependencies": {
+    "@ashetm/platform": "^1.0.1",
+    "@ashetm/types": "^1.3.1"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "typescript": "~5.9.3"
+  }
+}
