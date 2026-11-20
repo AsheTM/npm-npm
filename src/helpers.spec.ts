@@ -2,8 +2,8 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
 import { NpmApiError } from './error.ts';
-import { getPeerDependencies, isDeprecated, toPeerDependencies } from './helpers.ts';
-import type { PeerDependency } from './helpers.ts';
+import { getPeerDependencies, getTypesInfo, hasBundledTypes, isDeprecated, toPeerDependencies, toTypesPackageName } from './helpers.ts';
+import type { PeerDependency, TypesInfo } from './helpers.ts';
 import type { PackageVersion } from './package.types.ts';
 import { fakeFetch, jsonResponse } from './testing/fetch.ts';
 import type { FakeFetch } from './testing/fetch.ts';
@@ -127,5 +127,146 @@ describe('getPeerDependencies', () => {
 
     // THEN
     assert.equal(fake.calls[0]?.url, 'https://registry.npmjs.org/react-dom/18.0.0');
+  });
+});
+
+describe('toTypesPackageName', () => {
+  for (const [name, expected] of [
+    ['react', '@types/react'],
+    ['@babel/core', '@types/babel__core'],
+    ['lodash.debounce', '@types/lodash.debounce'],
+  ] as const) {
+    it(`should map ${name} to ${expected}`, () => {
+      // GIVEN
+      // a package name
+
+      // WHEN
+      const result: string = toTypesPackageName(name);
+
+      // THEN
+      assert.equal(result, expected);
+    });
+  }
+});
+
+describe('hasBundledTypes', () => {
+  const cases: [string, Record<string, unknown>, boolean][] = [
+    ['`types`', { types: 'index.d.ts' }, true],
+    ['`typings`', { typings: './types/core.d.ts' }, true],
+    ['a `types` condition in `exports`', { exports: { '.': { types: { default: './index.d.ts' }, default: './index.js' } } }, true],
+    ['a `.d.mts` path in `exports`', { exports: { '.': { import: ['./a.d.mts', './a.mjs'] } } }, true],
+    ['an `@types/*` package', { name: '@types/node' }, true],
+    ['nothing', { main: 'index.js', exports: { '.': './index.js' } }, false],
+    ['an empty `types`', { types: '' }, false],
+  ];
+
+  for (const [label, extra, expected] of cases) {
+    it(`should return ${expected} with ${label}`, () => {
+      // GIVEN
+      const version: PackageVersion = versionDocument('x', '1.0.0', extra) as unknown as PackageVersion;
+
+      // WHEN
+      const result: boolean = hasBundledTypes(version);
+
+      // THEN
+      assert.equal(result, expected);
+    });
+  }
+});
+
+describe('getTypesInfo', () => {
+  // `name@version` → document; anything else → 404
+  const registry: (documents: Record<string, Record<string, unknown>>) => FakeFetch = (documents) =>
+    fakeFetch((url) => {
+      const key: string = decodeURIComponent(url.replace('https://registry.npmjs.org/', ''));
+
+      return documents[key] ? jsonResponse(documents[key]) : jsonResponse({ error: 'Not found' }, { status: 404 });
+    });
+
+  it('should find bundled types with one request', async () => {
+    // GIVEN
+    const fake: FakeFetch = registry({ 'axios/latest': versionDocument('axios', '1.0.0', { types: 'index.d.ts' }) });
+
+    // WHEN
+    const result: TypesInfo = await getTypesInfo('axios', undefined, { fetch: fake.fetch });
+
+    // THEN
+    assert.deepEqual(result, { source: 'bundled', types: 'index.d.ts' });
+    assert.equal(fake.calls.length, 1);
+  });
+
+  it('should find bundled types declared in `exports` only', async () => {
+    // GIVEN
+    const fake: FakeFetch = registry({ 'x/1.0.0': versionDocument('x', '1.0.0', { exports: { '.': { types: './x.d.ts' } } }) });
+
+    // WHEN
+    const result: TypesInfo = await getTypesInfo('x', '1.0.0', { fetch: fake.fetch });
+
+    // THEN
+    assert.deepEqual(result, { source: 'bundled' });
+  });
+
+  it('should find an `@types/*` package for a scoped package', async () => {
+    // GIVEN
+    const fake: FakeFetch = registry({
+      '@babel/core/latest': versionDocument('@babel/core', '7.0.0'),
+      '@types/babel__core/latest': versionDocument('@types/babel__core', '7.20.5'),
+    });
+
+    // WHEN
+    const result: TypesInfo = await getTypesInfo('@babel/core', undefined, { fetch: fake.fetch });
+
+    // THEN
+    assert.deepEqual(result, { source: 'definitely-typed', typesPackage: '@types/babel__core', typesVersion: '7.20.5' });
+    assert.equal(fake.calls[1]?.url, 'https://registry.npmjs.org/@types%2Fbabel__core/latest');
+  });
+
+  it('should ignore a deprecated `@types/*` stub', async () => {
+    // GIVEN
+    const fake: FakeFetch = registry({
+      'x/latest': versionDocument('x', '1.0.0'),
+      '@types/x/latest': versionDocument('@types/x', '0.1.0', { deprecated: 'This is a stub types definition.' }),
+    });
+
+    // WHEN
+    const result: TypesInfo = await getTypesInfo('x', undefined, { fetch: fake.fetch });
+
+    // THEN
+    assert.deepEqual(result, { source: 'none' });
+  });
+
+  it('should return `none` when there is no `@types/*` package', async () => {
+    // GIVEN
+    const fake: FakeFetch = registry({ 'x/latest': versionDocument('x', '1.0.0') });
+
+    // WHEN
+    const result: TypesInfo = await getTypesInfo('x', undefined, { fetch: fake.fetch });
+
+    // THEN
+    assert.deepEqual(result, { source: 'none' });
+  });
+
+  it('should throw `not-found` when the package itself is unknown', async () => {
+    // GIVEN
+    const fake: FakeFetch = registry({});
+
+    // WHEN
+    const promise: Promise<TypesInfo> = getTypesInfo('x', undefined, { fetch: fake.fetch });
+
+    // THEN
+    await assert.rejects(promise, hasCode('not-found'));
+  });
+
+  it('should rethrow other errors from the `@types/*` request', async () => {
+    // GIVEN
+    const fake: FakeFetch = fakeFetch((url) =>
+      url.includes('@types') ? jsonResponse({}, { status: 503 }) : jsonResponse(versionDocument('x', '1.0.0')),
+    );
+
+    // WHEN
+    const promise: Promise<TypesInfo> = getTypesInfo('x', undefined, { fetch: fake.fetch });
+
+    // THEN
+    await assert.rejects(promise, hasCode('http'));
   });
 });
