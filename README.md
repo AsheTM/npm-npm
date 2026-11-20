@@ -198,8 +198,32 @@ Before any request, every function checks the name and throws an `NpmApiError` w
 | `registry`     | `https://registry.npmjs.org`      | The registry base URL, for a mirror.                            |
 | `downloadsApi` | `https://api.npmjs.org/downloads` | The downloads API base URL.                                     |
 | `headers`      | none                              | Extra request headers.                                          |
+| `retry`        | off                               | Retry after a 429: `true` or `RetryOptions` (see below).        |
 
 A `User-Agent` header is only sent on the server. Browsers forbid it.
+
+### Retry
+
+npm answers 429 when you send too many requests. By default that throws an `NpmApiError` with code `'rate-limited'`. With the `retry` option, the request is retried:
+
+```ts
+import { createNpmClient, getDownloads } from '@ashetm/npm';
+
+await getDownloads('react', 'last-week', { retry: true });
+
+const npm = createNpmClient({ retry: { attempts: 3, delay: 2, maxDelay: 30 } });
+```
+
+| `RetryOptions` | Default | Description                                                                                  |
+|----------------|---------|----------------------------------------------------------------------------------------------|
+| `attempts`     | `2`     | Retries after the first request.                                                             |
+| `delay`        | `1`     | Seconds to wait when the 429 has no `Retry-After` header, doubled at each retry.             |
+| `maxDelay`     | `60`    | The longest wait, in seconds. If `Retry-After` asks for longer, `'rate-limited'` is thrown at once. |
+
+- The wait follows `Retry-After` (seconds or an HTTP date) when npm sends it.
+- Only 429 is retried.
+- An abort during the wait stops it, and the `AbortError` is rethrown.
+- With `getDownloadsBulk`, each request is retried on its own.
 
 ### Client
 
@@ -222,7 +246,7 @@ Every function throws an `NpmApiError` (it extends `Error`) when it cannot retur
 |----------------------|--------------------------------------------------------------------------|
 | `'invalid-name'`     | The package name, version, search query or download period is invalid. No request is sent. |
 | `'not-found'`        | The registry answered 404 (unknown package or version).                  |
-| `'rate-limited'`     | The registry answered 429. `retryAfter` holds the `Retry-After` value in seconds, when sent. |
+| `'rate-limited'`     | The registry answered 429 (after the retries, with `retry`). `retryAfter` holds the `Retry-After` value in seconds, when sent. |
 | `'http'`             | Any other HTTP error (`status` holds the code).                          |
 | `'network'`          | `fetch` failed (offline, DNS, CORS...), or no `fetch` is available. `cause` holds the original error. |
 | `'invalid-response'` | The body is not JSON, or not the expected document.                      |
@@ -270,7 +294,7 @@ export class PackageComponent {
 
 ## Types
 
-All the types are exported: `NpmApiOptions`, `NpmApiError`, `NpmApiErrorCode`, `NpmClient`, `Packument`, `AbbreviatedPackument`, `PackageVersion`, `AbbreviatedVersion`, `VersionBase`, `DistTags`, `Dist`, `DistSignature`, `PackumentTime`, `PeerDependencyMeta`, `Person`, `Repository`, `Bugs`, `SearchQuery`, `SearchOptions`, `SearchResult`, `SearchObject`, `SearchPackage`, `SearchPackageLinks`, `SearchScore`, `SearchUser`, `DownloadPeriod`, `NamedDownloadPeriod`, `DownloadDate`, `DownloadsPoint`, `DownloadsRange`, `DailyDownloads`, `PeerDependency`, `TypesInfo`, `TypesSource`.
+All the types are exported: `NpmApiOptions`, `RetryOptions`, `NpmApiError`, `NpmApiErrorCode`, `NpmClient`, `Packument`, `AbbreviatedPackument`, `PackageVersion`, `AbbreviatedVersion`, `VersionBase`, `DistTags`, `Dist`, `DistSignature`, `PackumentTime`, `PeerDependencyMeta`, `Person`, `Repository`, `Bugs`, `SearchQuery`, `SearchOptions`, `SearchResult`, `SearchObject`, `SearchPackage`, `SearchPackageLinks`, `SearchScore`, `SearchUser`, `DownloadPeriod`, `NamedDownloadPeriod`, `DownloadDate`, `DownloadsPoint`, `DownloadsRange`, `DailyDownloads`, `PeerDependency`, `TypesInfo`, `TypesSource`.
 
 ## Development
 
