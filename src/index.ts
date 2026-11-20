@@ -1,7 +1,7 @@
 export { toDownloadDate, toDownloadPeriod } from './download-period.ts';
 export { createNpmClient } from './client.ts';
 export type { NpmClient } from './client.ts';
-export { getDownloads, getDownloadsRange, isDownloadPeriod } from './downloads.ts';
+export { getDownloads, getDownloadsBulk, getDownloadsRange, isDownloadPeriod, MAX_BULK_SIZE } from './downloads.ts';
 export type {
   DailyDownloads,
   DownloadDate,
