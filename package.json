@@ -1,6 +1,6 @@
 {
   "name": "@ashetm/npm",
-  "version": "1.2.0",
+  "version": "1.3.0",
   "description": "Small, typed client for npm's official public APIs (package metadata, versions, search, download counts), built on fetch and safe on the server.",
   "contributors": [
     {
