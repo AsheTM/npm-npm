@@ -3,3 +3,19 @@ export type { NpmApiErrorCode, NpmApiErrorInit } from './error.ts';
 export { isValidPackageName } from './name.ts';
 export { DEFAULT_DOWNLOADS_API, DEFAULT_REGISTRY } from './options.ts';
 export type { NpmApiOptions } from './options.ts';
+export type {
+  AbbreviatedPackument,
+  AbbreviatedVersion,
+  Bugs,
+  Dist,
+  DistSignature,
+  DistTags,
+  PackageVersion,
+  Packument,
+  PackumentTime,
+  PeerDependencyMeta,
+  Repository,
+  VersionBase,
+} from './package.types.ts';
+export { getAbbreviatedPackage, getDistTags, getLatestVersion, getPackage, getVersion } from './packages.ts';
+export type { Person } from './person.ts';
