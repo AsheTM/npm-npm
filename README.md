@@ -1,10 +1,10 @@
 # @ashetm/npm
 
-`@ashetm/npm` is a small, typed client for npm's official public APIs: package documents, versions, dist-tags and search. It is built on `fetch` and nothing else, so it runs in Node 18+, browsers, Angular, React or a CLI. It is safe on the server (Node, SSR): it never throws `window is not defined`.
+`@ashetm/npm` is a small, typed client for npm's official public APIs: package documents, versions, dist-tags, search and download counts. It is built on `fetch` and nothing else, so it runs in Node 18+, browsers, Angular, React or a CLI. It is safe on the server (Node, SSR): it never throws `window is not defined`.
 
 It is plain TypeScript (no framework), shipped as ESM with type definitions and `"sideEffects": false`.
 
-It only calls the official registry, `https://registry.npmjs.org`, which allows browser requests (CORS).
+It only calls npm's official APIs, the registry (`https://registry.npmjs.org`) and the downloads API (`https://api.npmjs.org/downloads`). Both allow browser requests (CORS).
 
 ## Install
 
@@ -21,12 +21,15 @@ import {
   createNpmClient,
   getAbbreviatedPackage,
   getDistTags,
+  getDownloads,
+  getDownloadsRange,
   getLatestVersion,
   getPackage,
   getVersion,
   isValidPackageName,
   NpmApiError,
   searchPackages,
+  toDownloadPeriod,
 } from '@ashetm/npm';
 ```
 
@@ -97,6 +100,32 @@ An empty query throws an `NpmApiError` with code `'invalid-name'`, without a req
 
 The registry currently ignores some qualifiers (`scope:`, `is:`, `not:`). They are still sent as npm documents them.
 
+### Downloads
+
+| Function                                   | Returns                                                                       |
+|--------------------------------------------|-------------------------------------------------------------------------------|
+| `getDownloads(name, period?, options?)`      | `DownloadsPoint`: `{ downloads, start, end, package }`, the total over the period. |
+| `getDownloadsRange(name, period?, options?)` | `DownloadsRange`: `{ downloads: [{ day, downloads }], start, end, package }`, one entry per day. |
+
+`period` defaults to `'last-week'`. A `DownloadPeriod` is one of:
+
+- a named period: `'last-day'`, `'last-week'`, `'last-month'` or `'last-year'` (the only ones the API accepts);
+- one day: `'2026-01-07'`;
+- a range of days: `'2026-01-01:2026-01-31'`. The API returns at most 18 months: it moves an earlier start forward.
+
+Dates are in UTC. `toDownloadPeriod(start, end?)` builds a range from two `Date`s (`end` defaults to `start`), and `toDownloadDate(date)` formats one day. Both throw a `RangeError` for an invalid date or a start after the end.
+
+```ts
+import { getDownloads, getDownloadsRange, toDownloadPeriod } from '@ashetm/npm';
+
+const { downloads } = await getDownloads('@angular/core'); // last week
+
+const january = await getDownloadsRange('react', toDownloadPeriod(new Date('2026-01-01'), new Date('2026-01-31')));
+console.log(january.downloads.map(({ day, downloads }) => `${day}: ${downloads}`));
+```
+
+A bad period throws an `NpmApiError` with code `'invalid-name'` without a request (`isDownloadPeriod(value)` checks it). An unknown package throws `'not-found'`.
+
 ### Package names
 
 `isValidPackageName(name)` checks npm's rules for a new package name: lowercase, at most 214 characters, URL-safe, optionally `@scope/name`.
@@ -115,14 +144,14 @@ Before any request, every function checks the name and throws an `NpmApiError` w
 | `fetch`        | the global `fetch`                | A custom `fetch` (tests, proxies, a polyfill).                   |
 | `signal`       | none                              | An `AbortSignal` that cancels the request.                      |
 | `registry`     | `https://registry.npmjs.org`      | The registry base URL, for a mirror.                            |
-| `downloadsApi` | `https://api.npmjs.org/downloads` | The downloads API base URL (used by the coming download functions). |
+| `downloadsApi` | `https://api.npmjs.org/downloads` | The downloads API base URL.                                     |
 | `headers`      | none                              | Extra request headers.                                          |
 
 A `User-Agent` header is only sent on the server. Browsers forbid it.
 
 ### Client
 
-`createNpmClient(defaults)` returns the same functions (package functions and `searchPackages`) with the defaults applied. Per-call options override them, and headers are merged.
+`createNpmClient(defaults)` returns the same functions (packages, search and downloads) with the defaults applied. Per-call options override them, and headers are merged.
 
 ```ts
 import { createNpmClient, type NpmClient } from '@ashetm/npm';
@@ -139,7 +168,7 @@ Every function throws an `NpmApiError` (it extends `Error`) when it cannot retur
 
 | `code`               | When                                                                     |
 |----------------------|--------------------------------------------------------------------------|
-| `'invalid-name'`     | The package name, version or search query is invalid. No request is sent. |
+| `'invalid-name'`     | The package name, version, search query or download period is invalid. No request is sent. |
 | `'not-found'`        | The registry answered 404 (unknown package or version).                  |
 | `'rate-limited'`     | The registry answered 429. `retryAfter` holds the `Retry-After` value in seconds, when sent. |
 | `'http'`             | Any other HTTP error (`status` holds the code).                          |
@@ -189,7 +218,7 @@ export class PackageComponent {
 
 ## Types
 
-All the types are exported: `NpmApiOptions`, `NpmApiError`, `NpmApiErrorCode`, `NpmClient`, `Packument`, `AbbreviatedPackument`, `PackageVersion`, `AbbreviatedVersion`, `VersionBase`, `DistTags`, `Dist`, `DistSignature`, `PackumentTime`, `PeerDependencyMeta`, `Person`, `Repository`, `Bugs`, `SearchQuery`, `SearchOptions`, `SearchResult`, `SearchObject`, `SearchPackage`, `SearchPackageLinks`, `SearchScore`, `SearchUser`.
+All the types are exported: `NpmApiOptions`, `NpmApiError`, `NpmApiErrorCode`, `NpmClient`, `Packument`, `AbbreviatedPackument`, `PackageVersion`, `AbbreviatedVersion`, `VersionBase`, `DistTags`, `Dist`, `DistSignature`, `PackumentTime`, `PeerDependencyMeta`, `Person`, `Repository`, `Bugs`, `SearchQuery`, `SearchOptions`, `SearchResult`, `SearchObject`, `SearchPackage`, `SearchPackageLinks`, `SearchScore`, `SearchUser`, `DownloadPeriod`, `NamedDownloadPeriod`, `DownloadDate`, `DownloadsPoint`, `DownloadsRange`, `DailyDownloads`.
 
 ## Development
 
