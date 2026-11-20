@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
 import { createNpmClient } from './client.ts';
-import { getDownloads, getDownloadsRange } from './downloads.ts';
+import { getDownloads, getDownloadsBulk, getDownloadsRange } from './downloads.ts';
 import type { DownloadsPoint, DownloadsRange } from './downloads.types.ts';
 import type { NpmClient } from './client.ts';
 import { NpmApiError } from './error.ts';
@@ -143,6 +143,20 @@ describe('registry (live)', () => {
 
     // THEN
     await assert.rejects(promise, hasCode('not-found'));
+  });
+
+  it('should get bulk downloads of scoped, unscoped and unknown packages', async () => {
+    // GIVEN
+    const names: string[] = ['react', 'vue', '@angular/core', 'this-package-does-not-exist-zzq'];
+
+    // WHEN
+    const result: Record<string, DownloadsPoint | null> = await getDownloadsBulk(names, 'last-week');
+
+    // THEN
+    assert.deepEqual(Object.keys(result), names);
+    assert.ok((result['react']?.downloads ?? 0) > 0);
+    assert.ok((result['@angular/core']?.downloads ?? 0) > 0);
+    assert.equal(result['this-package-does-not-exist-zzq'], null);
   });
 
   it('should work through a client', async () => {
