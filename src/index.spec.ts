@@ -20,12 +20,16 @@ describe('index', () => {
       'getDownloadsRange',
       'getLatestVersion',
       'getPackage',
+      'getPeerDependencies',
+      'getTypesInfo',
       'getVersion',
+      'isDeprecated',
       'isDownloadPeriod',
       'isValidPackageName',
       'searchPackages',
       'toDownloadDate',
       'toDownloadPeriod',
+      'toTypesPackageName',
     ];
 
     // WHEN

@@ -4,6 +4,15 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.0] - 2026-11-20
+
+### Added
+
+- `isDeprecated()`: whether a version (default `latest`) is deprecated ([#23](https://github.com/AsheTM/npm-npm/issues/23)).
+- `getPeerDependencies()`: peer dependencies with their range and optional flag (`peerDependenciesMeta`) ([#24](https://github.com/AsheTM/npm-npm/issues/24)).
+- `getTypesInfo()` and `toTypesPackageName()`: whether a package ships its types or has an `@types/*` package ([#25](https://github.com/AsheTM/npm-npm/issues/25)).
+- All three on `createNpmClient()`.
+
 ## [1.3.0] - 2026-11-20
 
 ### Added

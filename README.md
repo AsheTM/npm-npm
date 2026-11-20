@@ -26,7 +26,10 @@ import {
   getDownloadsRange,
   getLatestVersion,
   getPackage,
+  getPeerDependencies,
+  getTypesInfo,
   getVersion,
+  isDeprecated,
   isValidPackageName,
   NpmApiError,
   searchPackages,
@@ -150,6 +153,31 @@ How the requests are sent:
 
 Any error other than an unknown package (`'rate-limited'`, `'network'`, an abort...) rejects the whole call.
 
+### Helpers
+
+Small answers on top of the package data. Each one takes `versionOrTag` (default `'latest'`) and makes one request (`getTypesInfo` may make two).
+
+| Function                                              | Returns                                                                                 |
+|-------------------------------------------------------|-----------------------------------------------------------------------------------------|
+| `isDeprecated(name, versionOrTag?, options?)`         | `boolean`: `true` when the version has a deprecation message.                           |
+| `getPeerDependencies(name, versionOrTag?, options?)`  | `Record<string, PeerDependency>`: `{ range, optional }` for each peer.                  |
+| `getTypesInfo(name, versionOrTag?, options?)`         | `TypesInfo`: `{ source, types?, typesPackage?, typesVersion? }`.                        |
+
+```ts
+import { getPeerDependencies, getTypesInfo, isDeprecated } from '@ashetm/npm';
+
+await isDeprecated('request'); // true
+
+await getPeerDependencies('@angular/core');
+// { rxjs: { range: '^6.5.3 || ^7.4.0', optional: false }, 'zone.js': { range: '~0.15.0 || ~0.16.0', optional: true }, ... }
+
+await getTypesInfo('axios'); // { source: 'bundled', types: 'index.d.ts' }
+await getTypesInfo('express'); // { source: 'definitely-typed', typesPackage: '@types/express', typesVersion: '5.0.6' }
+```
+
+- `getPeerDependencies` merges `peerDependencies` with `peerDependenciesMeta`. A peer listed only in `peerDependenciesMeta` is optional with range `'*'`, as npm treats it.
+- `getTypesInfo` returns `'bundled'` when the version declares its types: `types`, `typings`, or a `types` condition or `.d.ts` file in `exports`. Otherwise it looks for `@types/{name}` (`@types/scope__name` for `@scope/name`, see `toTypesPackageName`) and returns `'definitely-typed'`. A deprecated `@types` stub doesn't count. If neither applies, it returns `'none'`. A package that ships an `index.d.ts` without declaring it isn't detected: that would need the tarball.
+
 ### Package names
 
 `isValidPackageName(name)` checks npm's rules for a new package name: lowercase, at most 214 characters, URL-safe, optionally `@scope/name`.
@@ -175,7 +203,7 @@ A `User-Agent` header is only sent on the server. Browsers forbid it.
 
 ### Client
 
-`createNpmClient(defaults)` returns the same functions (packages, search and downloads) with the defaults applied. Per-call options override them, and headers are merged.
+`createNpmClient(defaults)` returns the same functions (packages, search, downloads and helpers) with the defaults applied. Per-call options override them, and headers are merged.
 
 ```ts
 import { createNpmClient, type NpmClient } from '@ashetm/npm';
@@ -242,7 +270,7 @@ export class PackageComponent {
 
 ## Types
 
-All the types are exported: `NpmApiOptions`, `NpmApiError`, `NpmApiErrorCode`, `NpmClient`, `Packument`, `AbbreviatedPackument`, `PackageVersion`, `AbbreviatedVersion`, `VersionBase`, `DistTags`, `Dist`, `DistSignature`, `PackumentTime`, `PeerDependencyMeta`, `Person`, `Repository`, `Bugs`, `SearchQuery`, `SearchOptions`, `SearchResult`, `SearchObject`, `SearchPackage`, `SearchPackageLinks`, `SearchScore`, `SearchUser`, `DownloadPeriod`, `NamedDownloadPeriod`, `DownloadDate`, `DownloadsPoint`, `DownloadsRange`, `DailyDownloads`.
+All the types are exported: `NpmApiOptions`, `NpmApiError`, `NpmApiErrorCode`, `NpmClient`, `Packument`, `AbbreviatedPackument`, `PackageVersion`, `AbbreviatedVersion`, `VersionBase`, `DistTags`, `Dist`, `DistSignature`, `PackumentTime`, `PeerDependencyMeta`, `Person`, `Repository`, `Bugs`, `SearchQuery`, `SearchOptions`, `SearchResult`, `SearchObject`, `SearchPackage`, `SearchPackageLinks`, `SearchScore`, `SearchUser`, `DownloadPeriod`, `NamedDownloadPeriod`, `DownloadDate`, `DownloadsPoint`, `DownloadsRange`, `DailyDownloads`, `PeerDependency`, `TypesInfo`, `TypesSource`.
 
 ## Development
 

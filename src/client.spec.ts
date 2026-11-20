@@ -110,6 +110,19 @@ describe('createNpmClient', () => {
     );
   });
 
+  it('should check deprecation with the defaults', async () => {
+    // GIVEN
+    const fake: FakeFetch = registryFetch();
+    const client: NpmClient = createNpmClient({ fetch: fake.fetch, registry: MIRROR });
+
+    // WHEN
+    const result: boolean = await client.isDeprecated('react');
+
+    // THEN
+    assert.equal(result, false);
+    assert.equal(fake.calls[0]?.url, `${MIRROR}/react/latest`);
+  });
+
   it('should let per-call options override the defaults', async () => {
     // GIVEN
     const fake: FakeFetch = registryFetch();
