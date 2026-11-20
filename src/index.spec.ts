@@ -21,6 +21,7 @@ describe('index', () => {
       'getLatestVersion',
       'getPackage',
       'getVersion',
+      'isDeprecated',
       'isDownloadPeriod',
       'isValidPackageName',
       'searchPackages',
