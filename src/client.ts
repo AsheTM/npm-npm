@@ -1,3 +1,5 @@
+import { getDownloads, getDownloadsRange } from './downloads.ts';
+import type { DownloadPeriod, DownloadsPoint, DownloadsRange } from './downloads.types.ts';
 import type { NpmApiOptions } from './options.ts';
 import type { AbbreviatedPackument, DistTags, PackageVersion, Packument } from './package.types.ts';
 import { getAbbreviatedPackage, getDistTags, getLatestVersion, getPackage, getVersion } from './packages.ts';
@@ -13,6 +15,8 @@ export interface NpmClient {
   getLatestVersion(name: string, options?: NpmApiOptions): Promise<string>;
   getDistTags(name: string, options?: NpmApiOptions): Promise<DistTags>;
   searchPackages(query: string | SearchQuery, options?: SearchOptions & NpmApiOptions): Promise<SearchResult>;
+  getDownloads(name: string, period?: DownloadPeriod, options?: NpmApiOptions): Promise<DownloadsPoint>;
+  getDownloadsRange(name: string, period?: DownloadPeriod, options?: NpmApiOptions): Promise<DownloadsRange>;
 }
 
 // Per-call options win; headers are merged (per-call headers win too)
@@ -49,5 +53,7 @@ export const createNpmClient: (defaults?: NpmApiOptions) => NpmClient = (default
     getLatestVersion: (name, options) => getLatestVersion(name, withDefaults(options)),
     getDistTags: (name, options) => getDistTags(name, withDefaults(options)),
     searchPackages: (query, options) => searchPackages(query, { ...withDefaults(options), ...pickSearchOptions(options) }),
+    getDownloads: (name, period, options) => getDownloads(name, period, withDefaults(options)),
+    getDownloadsRange: (name, period, options) => getDownloadsRange(name, period, withDefaults(options)),
   };
 };
