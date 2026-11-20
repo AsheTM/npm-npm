@@ -7,8 +7,8 @@ import { getDownloads, getDownloadsBulk, getDownloadsRange } from './downloads.t
 import type { DownloadsPoint, DownloadsRange } from './downloads.types.ts';
 import type { NpmClient } from './client.ts';
 import { NpmApiError } from './error.ts';
-import { getPeerDependencies, isDeprecated } from './helpers.ts';
-import type { PeerDependency } from './helpers.ts';
+import { getPeerDependencies, getTypesInfo, isDeprecated } from './helpers.ts';
+import type { PeerDependency, TypesInfo } from './helpers.ts';
 import type { AbbreviatedPackument, DistTags, PackageVersion, Packument } from './package.types.ts';
 import { getAbbreviatedPackage, getDistTags, getLatestVersion, getPackage, getVersion } from './packages.ts';
 import { searchPackages } from './search.ts';
@@ -183,6 +183,20 @@ describe('registry (live)', () => {
     // THEN
     assert.equal(result['rxjs']?.optional, false);
     assert.equal(result['zone.js']?.optional, true);
+  });
+
+  it('should tell where the types come from', async () => {
+    // GIVEN
+    const names: string[] = ['axios', 'express', 'left-pad'];
+
+    // WHEN
+    const [axios, express, leftPad]: TypesInfo[] = await Promise.all(names.map((name) => getTypesInfo(name)));
+
+    // THEN
+    assert.equal(axios?.source, 'bundled');
+    assert.equal(express?.source, 'definitely-typed');
+    assert.equal(express?.typesPackage, '@types/express');
+    assert.equal(leftPad?.source, 'bundled');
   });
 
   it('should work through a client', async () => {

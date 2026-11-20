@@ -21,6 +21,7 @@ describe('index', () => {
       'getLatestVersion',
       'getPackage',
       'getPeerDependencies',
+      'getTypesInfo',
       'getVersion',
       'isDeprecated',
       'isDownloadPeriod',
@@ -28,6 +29,7 @@ describe('index', () => {
       'searchPackages',
       'toDownloadDate',
       'toDownloadPeriod',
+      'toTypesPackageName',
     ];
 
     // WHEN
