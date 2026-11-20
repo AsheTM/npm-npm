@@ -4,7 +4,13 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.2.0] - Unreleased
+## [1.3.0] - Unreleased
+
+### Added
+
+- `getDownloadsBulk()`: download counts of many packages at once (batches of 128 unscoped names, one request per scoped name, `null` for an unknown package), with `MAX_BULK_SIZE`, also on `createNpmClient()` ([#19](https://github.com/AsheTM/npm-npm/issues/19)).
+
+## [1.2.0] - 2026-11-20
 
 ### Added
 
