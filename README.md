@@ -22,6 +22,7 @@ import {
   getAbbreviatedPackage,
   getDistTags,
   getDownloads,
+  getDownloadsBulk,
   getDownloadsRange,
   getLatestVersion,
   getPackage,
@@ -125,6 +126,29 @@ console.log(january.downloads.map(({ day, downloads }) => `${day}: ${downloads}`
 ```
 
 A bad period throws an `NpmApiError` with code `'invalid-name'` without a request (`isDownloadPeriod(value)` checks it). An unknown package throws `'not-found'`.
+
+### Bulk downloads
+
+`getDownloadsBulk(names, period?, options?)` returns the `DownloadsPoint` of many packages at once, as `Record<string, DownloadsPoint | null>` in the order of `names` (duplicates removed). An unknown package gets `null` instead of an error.
+
+```ts
+import { getDownloadsBulk } from '@ashetm/npm';
+
+const downloads = await getDownloadsBulk(['react', 'vue', '@angular/core', 'svelte'], 'last-month');
+
+for (const [name, point] of Object.entries(downloads)) {
+  console.log(name, point?.downloads ?? 'unknown package');
+}
+```
+
+How the requests are sent:
+
+- Unscoped names go in batches of up to 128 (`MAX_BULK_SIZE`), one request per batch.
+- npm doesn't allow scoped names (`@scope/name`) in bulk requests, so each scoped name is a separate request.
+- At most 4 requests run at the same time.
+- npm limits bulk periods to 365 days: a longer range throws an `NpmApiError` with code `'http'`.
+
+Any error other than an unknown package (`'rate-limited'`, `'network'`, an abort...) rejects the whole call.
 
 ### Package names
 
