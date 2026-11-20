@@ -21,3 +21,14 @@ export type {
 } from './package.types.ts';
 export { getAbbreviatedPackage, getDistTags, getLatestVersion, getPackage, getVersion } from './packages.ts';
 export type { Person } from './person.ts';
+export { MAX_SEARCH_SIZE, searchPackages } from './search.ts';
+export type {
+  SearchObject,
+  SearchOptions,
+  SearchPackage,
+  SearchPackageLinks,
+  SearchQuery,
+  SearchResult,
+  SearchScore,
+  SearchUser,
+} from './search.types.ts';
