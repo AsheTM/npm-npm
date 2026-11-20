@@ -1,6 +1,6 @@
 # @ashetm/npm
 
-`@ashetm/npm` is a small, typed client for npm's official public APIs: package documents, versions and dist-tags. It is built on `fetch` and nothing else, so it runs in Node 18+, browsers, Angular, React or a CLI. It is safe on the server (Node, SSR): it never throws `window is not defined`.
+`@ashetm/npm` is a small, typed client for npm's official public APIs: package documents, versions, dist-tags and search. It is built on `fetch` and nothing else, so it runs in Node 18+, browsers, Angular, React or a CLI. It is safe on the server (Node, SSR): it never throws `window is not defined`.
 
 It is plain TypeScript (no framework), shipped as ESM with type definitions and `"sideEffects": false`.
 
@@ -26,6 +26,7 @@ import {
   getVersion,
   isValidPackageName,
   NpmApiError,
+  searchPackages,
 } from '@ashetm/npm';
 ```
 
@@ -62,6 +63,40 @@ npm sends some fields in more than one format. They are normalized, so the types
 - `bugs`: a string becomes `{ url }`.
 - `license`: an old `{ type, url }` object becomes its `type`.
 
+### Search
+
+`searchPackages(query, options?)` searches the registry (`/-/v1/search`) and returns a `SearchResult`: `{ objects, total, time }`.
+
+`query` is a string, or a `SearchQuery` with free text and npm's search qualifiers:
+
+| Field        | Sent as                | Example                         |
+|--------------|------------------------|---------------------------------|
+| `text`       | the text itself        | `'http client'`                 |
+| `author`     | `author:{value}`       | `'jane'`                        |
+| `maintainer` | `maintainer:{value}`   | `'jane'`                        |
+| `scope`      | `scope:{value}`        | `'angular'` (a leading `@` is removed) |
+| `keywords`   | `keywords:{a,b}`       | `'ssr'` or `['ssr', 'browser']` |
+| `not`        | `not:{value}`          | `'unstable'` or `'insecure'`    |
+| `is`         | `is:{value}`           | `'unstable'` or `'insecure'`    |
+
+The options also take `size` (results per page, 1 to 250, npm's default is 20) and `from` (offset).
+
+```ts
+import { searchPackages } from '@ashetm/npm';
+
+const { objects, total } = await searchPackages({ text: 'platform', author: 'ashetm', keywords: ['ssr'] }, { size: 10 });
+
+for (const { package: pkg, downloads, dependents } of objects) {
+  console.log(pkg.name, pkg.version, downloads?.weekly, dependents);
+}
+```
+
+Each `SearchObject` has `package` (`name`, `version`, `description`, `keywords`, `date`, `links`, `publisher`, `maintainers`...), `score`, `searchScore`, and when npm sends them `downloads` (`weekly`, `monthly`), `dependents` (a number) and `updated`.
+
+An empty query throws an `NpmApiError` with code `'invalid-name'`, without a request.
+
+The registry currently ignores some qualifiers (`scope:`, `is:`, `not:`). They are still sent as npm documents them.
+
 ### Package names
 
 `isValidPackageName(name)` checks npm's rules for a new package name: lowercase, at most 214 characters, URL-safe, optionally `@scope/name`.
@@ -87,7 +122,7 @@ A `User-Agent` header is only sent on the server. Browsers forbid it.
 
 ### Client
 
-`createNpmClient(defaults)` returns the same functions with the defaults applied. Per-call options override them, and headers are merged.
+`createNpmClient(defaults)` returns the same functions (package functions and `searchPackages`) with the defaults applied. Per-call options override them, and headers are merged.
 
 ```ts
 import { createNpmClient, type NpmClient } from '@ashetm/npm';
@@ -104,7 +139,7 @@ Every function throws an `NpmApiError` (it extends `Error`) when it cannot retur
 
 | `code`               | When                                                                     |
 |----------------------|--------------------------------------------------------------------------|
-| `'invalid-name'`     | The package name (or version) is invalid. No request is sent.            |
+| `'invalid-name'`     | The package name, version or search query is invalid. No request is sent. |
 | `'not-found'`        | The registry answered 404 (unknown package or version).                  |
 | `'rate-limited'`     | The registry answered 429. `retryAfter` holds the `Retry-After` value in seconds, when sent. |
 | `'http'`             | Any other HTTP error (`status` holds the code).                          |
@@ -154,7 +189,7 @@ export class PackageComponent {
 
 ## Types
 
-All the types are exported: `NpmApiOptions`, `NpmApiError`, `NpmApiErrorCode`, `NpmClient`, `Packument`, `AbbreviatedPackument`, `PackageVersion`, `AbbreviatedVersion`, `VersionBase`, `DistTags`, `Dist`, `DistSignature`, `PackumentTime`, `PeerDependencyMeta`, `Person`, `Repository`, `Bugs`.
+All the types are exported: `NpmApiOptions`, `NpmApiError`, `NpmApiErrorCode`, `NpmClient`, `Packument`, `AbbreviatedPackument`, `PackageVersion`, `AbbreviatedVersion`, `VersionBase`, `DistTags`, `Dist`, `DistSignature`, `PackumentTime`, `PeerDependencyMeta`, `Person`, `Repository`, `Bugs`, `SearchQuery`, `SearchOptions`, `SearchResult`, `SearchObject`, `SearchPackage`, `SearchPackageLinks`, `SearchScore`, `SearchUser`.
 
 ## Development
 

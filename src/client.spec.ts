@@ -76,6 +76,18 @@ describe('createNpmClient', () => {
     assert.ok(fake.calls.every((call) => call.headers['x-test'] === '1'));
   });
 
+  it('should search with the defaults and the per-call size', async () => {
+    // GIVEN
+    const fake: FakeFetch = fakeFetch(() => jsonResponse({ objects: [], total: 0, time: '' }));
+    const client: NpmClient = createNpmClient({ fetch: fake.fetch, registry: MIRROR });
+
+    // WHEN
+    await client.searchPackages({ text: 'react', author: 'jane' }, { size: 5 });
+
+    // THEN
+    assert.equal(fake.calls[0]?.url, `${MIRROR}/-/v1/search?text=react+author%3Ajane&size=5`);
+  });
+
   it('should let per-call options override the defaults', async () => {
     // GIVEN
     const fake: FakeFetch = registryFetch();

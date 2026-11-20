@@ -7,6 +7,8 @@ import type { NpmClient } from './client.ts';
 import { NpmApiError } from './error.ts';
 import type { AbbreviatedPackument, DistTags, PackageVersion, Packument } from './package.types.ts';
 import { getAbbreviatedPackage, getDistTags, getLatestVersion, getPackage, getVersion } from './packages.ts';
+import { searchPackages } from './search.ts';
+import type { SearchResult } from './search.types.ts';
 
 const SEMVER: RegExp = /^\d+\.\d+\.\d+/;
 
@@ -96,6 +98,20 @@ describe('registry (live)', () => {
     // THEN
     await assert.rejects(packagePromise, hasCode('not-found'));
     await assert.rejects(versionPromise, hasCode('not-found'));
+  });
+
+  it('should search with qualifiers', async () => {
+    // GIVEN
+    const query: { text: string; author: string; keywords: string[] } = { text: 'platform', author: 'ashetm', keywords: ['ssr'] };
+
+    // WHEN
+    const result: SearchResult = await searchPackages(query, { size: 5 });
+
+    // THEN
+    assert.ok(result.total >= 1);
+    assert.ok(result.objects.length <= 5);
+    assert.ok(result.objects.some((object) => object.package.name === '@ashetm/platform'));
+    assert.equal(typeof result.objects[0]?.dependents, 'number');
   });
 
   it('should work through a client', async () => {
