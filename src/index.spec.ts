@@ -9,6 +9,7 @@ describe('index', () => {
     const expected: string[] = [
       'DEFAULT_DOWNLOADS_API',
       'DEFAULT_REGISTRY',
+      'MAX_SEARCH_SIZE',
       'NpmApiError',
       'createNpmClient',
       'getAbbreviatedPackage',
@@ -17,6 +18,7 @@ describe('index', () => {
       'getPackage',
       'getVersion',
       'isValidPackageName',
+      'searchPackages',
     ];
 
     // WHEN
