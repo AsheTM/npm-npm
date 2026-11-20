@@ -22,6 +22,8 @@ describe('index', () => {
       'isDownloadPeriod',
       'isValidPackageName',
       'searchPackages',
+      'toDownloadDate',
+      'toDownloadPeriod',
     ];
 
     // WHEN
