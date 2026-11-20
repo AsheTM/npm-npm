@@ -10,6 +10,7 @@ describe('index', () => {
       'DEFAULT_DOWNLOADS_API',
       'DEFAULT_REGISTRY',
       'NpmApiError',
+      'createNpmClient',
       'getAbbreviatedPackage',
       'getDistTags',
       'getLatestVersion',
