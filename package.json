@@ -65,6 +65,7 @@
   "scripts": {
     "build": "rm -rf dist && tsc -p tsconfig.build.json",
     "test": "node --test \"src/**/*.spec.ts\"",
+    "test:live": "node --test \"src/**/*.live.ts\"",
     "typecheck": "tsc -p tsconfig.json",
     "prepublishOnly": "npm run typecheck && npm test && npm run build"
   },
