@@ -6,7 +6,6 @@
 
 # misc
 npm-debug.log
-yarn-error.log
 *.tgz
 
 # IDEs and editors
@@ -21,12 +20,3 @@ Thumbs.db
 
 # Others
 *.git-credentials
-
-# yarn
-.pnp.*
-.yarn/*
-!.yarn/patches
-!.yarn/plugins
-!.yarn/releases
-!.yarn/sdks
-!.yarn/versions

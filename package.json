@@ -34,6 +34,7 @@
     "versions"
   ],
   "license": "MIT",
+  "private": false,
   "repository": {
     "type": "git",
     "url": "git+https://github.com/AsheTM/npm-npm.git"
@@ -61,12 +62,11 @@
   "engines": {
     "node": ">=18"
   },
-  "packageManager": "yarn@4.3.1",
   "scripts": {
     "build": "rm -rf dist && tsc -p tsconfig.build.json",
     "test": "node --test \"src/**/*.spec.ts\"",
     "typecheck": "tsc -p tsconfig.json",
-    "prepublishOnly": "yarn typecheck && yarn test && yarn build"
+    "prepublishOnly": "npm run typecheck && npm test && npm run build"
   },
   "dependencies": {
     "@ashetm/platform": "^1.0.1",
