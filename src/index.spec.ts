@@ -1,0 +1,28 @@
+import assert from 'node:assert/strict';
+import { describe, it } from 'node:test';
+
+import * as api from './index.ts';
+
+describe('index', () => {
+  it('should export the public API only', () => {
+    // GIVEN
+    const expected: string[] = [
+      'DEFAULT_DOWNLOADS_API',
+      'DEFAULT_REGISTRY',
+      'NpmApiError',
+      'createNpmClient',
+      'getAbbreviatedPackage',
+      'getDistTags',
+      'getLatestVersion',
+      'getPackage',
+      'getVersion',
+      'isValidPackageName',
+    ];
+
+    // WHEN
+    const result: string[] = Object.keys(api).sort();
+
+    // THEN
+    assert.deepEqual(result, expected);
+  });
+});
