@@ -88,6 +88,28 @@ describe('createNpmClient', () => {
     assert.equal(fake.calls[0]?.url, `${MIRROR}/-/v1/search?text=react+author%3Ajane&size=5`);
   });
 
+  it('should get downloads with the defaults', async () => {
+    // GIVEN
+    const fake: FakeFetch = fakeFetch((url) =>
+      jsonResponse(
+        url.includes('/range/')
+          ? { start: 'a', end: 'b', package: 'react', downloads: [] }
+          : { start: 'a', end: 'b', package: 'react', downloads: 1 },
+      ),
+    );
+    const client: NpmClient = createNpmClient({ fetch: fake.fetch, downloadsApi: 'https://example.com/downloads' });
+
+    // WHEN
+    await client.getDownloads('react');
+    await client.getDownloadsRange('react', 'last-month');
+
+    // THEN
+    assert.deepEqual(
+      fake.calls.map((call) => call.url),
+      ['https://example.com/downloads/point/last-week/react', 'https://example.com/downloads/range/last-month/react'],
+    );
+  });
+
   it('should let per-call options override the defaults', async () => {
     // GIVEN
     const fake: FakeFetch = registryFetch();
