@@ -16,7 +16,7 @@ export { getPeerDependencies, getTypesInfo, isDeprecated, toTypesPackageName } f
 export type { PeerDependency, TypesInfo, TypesSource } from './helpers.ts';
 export { isValidPackageName } from './name.ts';
 export { DEFAULT_DOWNLOADS_API, DEFAULT_REGISTRY } from './options.ts';
-export type { NpmApiOptions } from './options.ts';
+export type { NpmApiOptions, RetryOptions } from './options.ts';
 export type {
   AbbreviatedPackument,
   AbbreviatedVersion,
