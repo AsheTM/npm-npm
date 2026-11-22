@@ -7,6 +7,7 @@ import type { AbbreviatedPackument, DistTags, PackageVersion, Packument } from '
 import { getAbbreviatedPackage, getDistTags, getLatestVersion, getPackage, getVersion } from './packages.ts';
 import { searchPackages } from './search.ts';
 import type { SearchOptions, SearchQuery, SearchResult } from './search.types.ts';
+import { getOrgPackages, getUserPackages } from './users.ts';
 
 // The functions with defaults applied; per-call options override them
 export interface NpmClient {
@@ -27,6 +28,8 @@ export interface NpmClient {
   isDeprecated(name: string, versionOrTag?: string, options?: NpmApiOptions): Promise<boolean>;
   getPeerDependencies(name: string, versionOrTag?: string, options?: NpmApiOptions): Promise<Record<string, PeerDependency>>;
   getTypesInfo(name: string, versionOrTag?: string, options?: NpmApiOptions): Promise<TypesInfo>;
+  getUserPackages(username: string, options?: NpmApiOptions): Promise<string[]>;
+  getOrgPackages(org: string, options?: NpmApiOptions): Promise<string[]>;
 }
 
 // Per-call options win; headers are merged (per-call headers win too)
@@ -69,5 +72,7 @@ export const createNpmClient: (defaults?: NpmApiOptions) => NpmClient = (default
     isDeprecated: (name, versionOrTag, options) => isDeprecated(name, versionOrTag, withDefaults(options)),
     getPeerDependencies: (name, versionOrTag, options) => getPeerDependencies(name, versionOrTag, withDefaults(options)),
     getTypesInfo: (name, versionOrTag, options) => getTypesInfo(name, versionOrTag, withDefaults(options)),
+    getUserPackages: (username, options) => getUserPackages(username, withDefaults(options)),
+    getOrgPackages: (org, options) => getOrgPackages(org, withDefaults(options)),
   };
 };
