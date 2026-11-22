@@ -1,6 +1,6 @@
 # @ashetm/npm
 
-`@ashetm/npm` is a small, typed client for npm's official public APIs: package documents, versions, dist-tags, search and download counts. It is built on `fetch` and nothing else, so it runs in Node 18+, browsers, Angular, React or a CLI. It is safe on the server (Node, SSR): it never throws `window is not defined`.
+`@ashetm/npm` is a small, typed client for npm's official public APIs: package documents, versions, dist-tags, search, download counts, and the packages of a user or an organization. It is built on `fetch` and nothing else, so it runs in Node 18+, browsers, Angular, React or a CLI. It is safe on the server (Node, SSR): it never throws `window is not defined`.
 
 It is plain TypeScript (no framework), shipped as ESM with type definitions and `"sideEffects": false`.
 
@@ -25,9 +25,11 @@ import {
   getDownloadsBulk,
   getDownloadsRange,
   getLatestVersion,
+  getOrgPackages,
   getPackage,
   getPeerDependencies,
   getTypesInfo,
+  getUserPackages,
   getVersion,
   isDeprecated,
   isValidPackageName,
@@ -178,6 +180,27 @@ await getTypesInfo('express'); // { source: 'definitely-typed', typesPackage: '@
 - `getPeerDependencies` merges `peerDependencies` with `peerDependenciesMeta`. A peer listed only in `peerDependenciesMeta` is optional with range `'*'`, as npm treats it.
 - `getTypesInfo` returns `'bundled'` when the version declares its types: `types`, `typings`, or a `types` condition or `.d.ts` file in `exports`. Otherwise it looks for `@types/{name}` (`@types/scope__name` for `@scope/name`, see `toTypesPackageName`) and returns `'definitely-typed'`. A deprecated `@types` stub doesn't count. If neither applies, it returns `'none'`. A package that ships an `index.d.ts` without declaring it isn't detected: that would need the tarball.
 
+### User and organization packages
+
+| Function                               | Returns                                                                  |
+|----------------------------------------|--------------------------------------------------------------------------|
+| `getUserPackages(username, options?)`  | `string[]`: the names of the user's packages, sorted.                    |
+| `getOrgPackages(org, options?)`        | `string[]`: the names of the packages the organization has access to, sorted. `org` may start with `@`. |
+
+```ts
+import { getOrgPackages, getUserPackages } from '@ashetm/npm';
+
+await getUserPackages('ashetm'); // ['@ashetm/npm', '@ashetm/platform', '@ashetm/types', ...]
+await getOrgPackages('@angular'); // ['@angular/core', '@angular/router', 'angular-in-memory-web-api', ...]
+```
+
+The registry endpoints behind them (`/-/user/{username}/package` and `/-/org/{org}/package`) send no CORS header, so browsers can't call them:
+
+- **`getUserPackages`**: on the server it calls `/-/user/{username}/package`, which returns the complete list in one request. In a browser or a web worker it uses the search (`maintainer:{username}`) instead, reading every page of 250. The search index can lag a few minutes behind a new package. An unknown user throws `'not-found'` on the server and returns `[]` in a browser.
+- **`getOrgPackages`**: server only. In a browser the request fails with `'network'`. The list contains every package the organization has access to, not only its scope (`@angular` also lists `angular-in-memory-web-api`). An unknown organization throws `'not-found'`.
+
+A username or organization name that isn't URL-safe throws `'invalid-name'` without a request.
+
 ### Package names
 
 `isValidPackageName(name)` checks npm's rules for a new package name: lowercase, at most 214 characters, URL-safe, optionally `@scope/name`.
@@ -227,7 +250,7 @@ const npm = createNpmClient({ retry: { attempts: 3, delay: 2, maxDelay: 30 } });
 
 ### Client
 
-`createNpmClient(defaults)` returns the same functions (packages, search, downloads and helpers) with the defaults applied. Per-call options override them, and headers are merged.
+`createNpmClient(defaults)` returns the same functions (packages, search, downloads, helpers, user and organization packages) with the defaults applied. Per-call options override them, and headers are merged.
 
 ```ts
 import { createNpmClient, type NpmClient } from '@ashetm/npm';
@@ -244,7 +267,7 @@ Every function throws an `NpmApiError` (it extends `Error`) when it cannot retur
 
 | `code`               | When                                                                     |
 |----------------------|--------------------------------------------------------------------------|
-| `'invalid-name'`     | The package name, version, search query or download period is invalid. No request is sent. |
+| `'invalid-name'`     | The package name, version, search query, download period, username or organization is invalid. No request is sent. |
 | `'not-found'`        | The registry answered 404 (unknown package or version).                  |
 | `'rate-limited'`     | The registry answered 429 (after the retries, with `retry`). `retryAfter` holds the `Retry-After` value in seconds, when sent. |
 | `'http'`             | Any other HTTP error (`status` holds the code).                          |
