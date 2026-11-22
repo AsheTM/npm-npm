@@ -44,3 +44,4 @@ export type {
   SearchScore,
   SearchUser,
 } from './search.types.ts';
+export { getUserPackages } from './users.ts';

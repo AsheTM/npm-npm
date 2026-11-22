@@ -22,6 +22,7 @@ describe('index', () => {
       'getPackage',
       'getPeerDependencies',
       'getTypesInfo',
+      'getUserPackages',
       'getVersion',
       'isDeprecated',
       'isDownloadPeriod',
