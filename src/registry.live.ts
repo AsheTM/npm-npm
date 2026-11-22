@@ -13,7 +13,7 @@ import type { AbbreviatedPackument, DistTags, PackageVersion, Packument } from '
 import { getAbbreviatedPackage, getDistTags, getLatestVersion, getPackage, getVersion } from './packages.ts';
 import { searchPackages } from './search.ts';
 import type { SearchResult } from './search.types.ts';
-import { getUserPackages } from './users.ts';
+import { getOrgPackages, getUserPackages } from './users.ts';
 
 const SEMVER: RegExp = /^\d+\.\d+\.\d+/;
 
@@ -211,6 +211,19 @@ describe('registry (live)', () => {
     assert.ok(result.includes('@ashetm/platform'));
     assert.ok(result.includes('@ashetm/npm'));
     assert.deepEqual(result, [...result].sort());
+  });
+
+  it('should list the packages of an organization', async () => {
+    // GIVEN
+    const org: string = '@angular';
+
+    // WHEN
+    const result: string[] = await getOrgPackages(org);
+
+    // THEN
+    // every package the org has access to, not only `@angular/*`
+    assert.ok(result.includes('@angular/core'));
+    assert.ok(result.includes('angular-in-memory-web-api'));
   });
 
   it('should work through a client', async () => {
