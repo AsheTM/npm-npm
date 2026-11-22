@@ -5,7 +5,7 @@ import { NpmApiError } from './error.ts';
 import { fakeFetch, jsonResponse } from './testing/fetch.ts';
 import type { FakeFetch } from './testing/fetch.ts';
 import { stubGlobal } from './testing/global.ts';
-import { getUserPackages } from './users.ts';
+import { getOrgPackages, getUserPackages } from './users.ts';
 
 const hasCode: (code: string) => (error: unknown) => boolean = (code) => (error) => error instanceof NpmApiError && error.code === code;
 
@@ -142,5 +142,59 @@ describe('getUserPackages in a browser', () => {
 
     // THEN
     assert.deepEqual(result, []);
+  });
+});
+
+describe('getOrgPackages', () => {
+  for (const org of ['angular', '@angular']) {
+    it(`should request the org endpoint for ${JSON.stringify(org)} and sort the names`, async () => {
+      // GIVEN
+      const fake: FakeFetch = fakeFetch(() => jsonResponse({ '@angular/router': 'write', '@angular/core': 'write' }));
+
+      // WHEN
+      const result: string[] = await getOrgPackages(org, { fetch: fake.fetch });
+
+      // THEN
+      assert.equal(fake.calls[0]?.url, 'https://registry.npmjs.org/-/org/angular/package');
+      assert.deepEqual(result, ['@angular/core', '@angular/router']);
+    });
+  }
+
+  it('should throw `not-found` for an unknown org', async () => {
+    // GIVEN
+    const fake: FakeFetch = fakeFetch(() => jsonResponse({ error: 'Scope not found' }, { status: 404 }));
+
+    // WHEN
+    const promise: Promise<string[]> = getOrgPackages('nobody-zzq', { fetch: fake.fetch });
+
+    // THEN
+    await assert.rejects(promise, hasCode('not-found'));
+  });
+
+  for (const org of ['', '@', '@a/b', 'a b']) {
+    it(`should throw \`invalid-name\` for ${JSON.stringify(org)} without any request`, async () => {
+      // GIVEN
+      const fake: FakeFetch = fakeFetch(() => jsonResponse({}));
+
+      // WHEN
+      const promise: Promise<string[]> = getOrgPackages(org, { fetch: fake.fetch });
+
+      // THEN
+      await assert.rejects(promise, hasCode('invalid-name'));
+      assert.equal(fake.calls.length, 0);
+    });
+  }
+
+  it('should still call the org endpoint in a browser (it fails there without CORS)', async () => {
+    // GIVEN
+    stubBrowser();
+    const fake: FakeFetch = fakeFetch(() => Promise.reject(new TypeError('Failed to fetch')));
+
+    // WHEN
+    const promise: Promise<string[]> = getOrgPackages('angular', { fetch: fake.fetch });
+
+    // THEN
+    await assert.rejects(promise, hasCode('network'));
+    assert.equal(fake.calls[0]?.url, 'https://registry.npmjs.org/-/org/angular/package');
   });
 });

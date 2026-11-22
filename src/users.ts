@@ -58,3 +58,16 @@ export const getUserPackages: (username: string, options?: NpmApiOptions) => Pro
 
   return toSortedNames(await requestJson(url, options), url);
 };
+
+// The sorted names of the packages an organization has access to (`'angular'` or `'@angular'`), from `/-/org/{org}/package`.
+// Not only its scope: e.g. `@angular` also lists `angular-in-memory-web-api`.
+// Server only: the endpoint sends no CORS header, so a browser request fails with `'network'`.
+export const getOrgPackages: (org: string, options?: NpmApiOptions) => Promise<string[]> = async (org, options) => {
+  const name: string = typeof org === 'string' ? org.replace(/^@/, '') : org;
+
+  assertAccountName(name, 'organization');
+
+  const url: string = `${getRegistryUrl(options)}/-/org/${name}/package`;
+
+  return toSortedNames(await requestJson(url, options), url);
+};

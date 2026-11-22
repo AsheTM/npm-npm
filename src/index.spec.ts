@@ -19,6 +19,7 @@ describe('index', () => {
       'getDownloadsBulk',
       'getDownloadsRange',
       'getLatestVersion',
+      'getOrgPackages',
       'getPackage',
       'getPeerDependencies',
       'getTypesInfo',
