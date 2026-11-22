@@ -4,7 +4,15 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.5.0] - Unreleased
+## [1.6.0] - Unreleased
+
+### Added
+
+- `getUserPackages()`: the sorted names of a user's packages. On the server, one request to `/-/user/{username}/package` returns the complete list. In the browser, it uses the search (`maintainer:`, every page) because that endpoint has no CORS ([#62](https://github.com/AsheTM/npm-npm/issues/62)).
+- `getOrgPackages()`: the sorted names of the packages an organization has access to, from `/-/org/{org}/package`. Server only ([#63](https://github.com/AsheTM/npm-npm/issues/63)).
+- Both on `createNpmClient()`.
+
+## [1.5.0] - 2026-11-20
 
 ### Added
 
