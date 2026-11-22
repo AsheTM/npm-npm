@@ -13,6 +13,7 @@ import type { AbbreviatedPackument, DistTags, PackageVersion, Packument } from '
 import { getAbbreviatedPackage, getDistTags, getLatestVersion, getPackage, getVersion } from './packages.ts';
 import { searchPackages } from './search.ts';
 import type { SearchResult } from './search.types.ts';
+import { getUserPackages } from './users.ts';
 
 const SEMVER: RegExp = /^\d+\.\d+\.\d+/;
 
@@ -197,6 +198,19 @@ describe('registry (live)', () => {
     assert.equal(express?.source, 'definitely-typed');
     assert.equal(express?.typesPackage, '@types/express');
     assert.equal(leftPad?.source, 'bundled');
+  });
+
+  it('should list the packages of a user', async () => {
+    // GIVEN
+    const username: string = 'ashetm';
+
+    // WHEN
+    const result: string[] = await getUserPackages(username);
+
+    // THEN
+    assert.ok(result.includes('@ashetm/platform'));
+    assert.ok(result.includes('@ashetm/npm'));
+    assert.deepEqual(result, [...result].sort());
   });
 
   it('should work through a client', async () => {
