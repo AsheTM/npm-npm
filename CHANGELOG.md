@@ -4,7 +4,14 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.6.0] - Unreleased
+## [1.7.0] - Unreleased
+
+### Added
+
+- `cache` option of `createNpmClient()` (`true` or `CacheOptions`: `ttl`, `maxEntries`), off by default: successful responses kept in memory, identical calls at the same time share one request, `clearCache()` ([#33](https://github.com/AsheTM/npm-npm/issues/33)).
+- ETag revalidation (`CacheOptions.etag`, default `true`, server only): after `ttl`, a 304 reuses the cached response ([#70](https://github.com/AsheTM/npm-npm/issues/70)).
+
+## [1.6.0] - 2026-11-22
 
 ### Added
 
