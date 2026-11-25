@@ -4,19 +4,23 @@ export interface CacheOptions {
   ttl?: number;
   // Most responses kept; the least recently used is dropped (default: 500)
   maxEntries?: number;
+  // After `ttl`, ask the registry with `If-None-Match` and reuse the body on 304 (default: true; server only)
+  etag?: boolean;
 }
 
-export const DEFAULT_CACHE: Required<CacheOptions> = { ttl: 300, maxEntries: 500 };
+export const DEFAULT_CACHE: Required<CacheOptions> = { ttl: 300, maxEntries: 500, etag: true };
 
 export interface CacheEntry {
   body: object;
   // Time (ms) after which the entry needs a new request
   expires: number;
+  etag?: string;
 }
 
 export class ResponseCache {
   readonly ttl: number;
   readonly maxEntries: number;
+  readonly etag: boolean;
   readonly #entries: Map<string, CacheEntry> = new Map();
   readonly #pending: Map<string, Promise<object>> = new Map();
   readonly #now: () => number;
@@ -26,6 +30,7 @@ export class ResponseCache {
 
     this.ttl = Math.max(0, settings.ttl);
     this.maxEntries = Math.max(1, Math.trunc(settings.maxEntries));
+    this.etag = settings.etag;
     this.#now = now;
   }
 
@@ -33,23 +38,32 @@ export class ResponseCache {
     return this.#entries.size;
   }
 
-  // A fresh entry (and marks it as recently used), or `undefined`
-  getFresh(key: string): CacheEntry | undefined {
+  // An entry, fresh or expired (and marks it as recently used), or `undefined`
+  get(key: string): CacheEntry | undefined {
     const entry: CacheEntry | undefined = this.#entries.get(key);
 
-    if (!entry || entry.expires <= this.#now()) {
-      return undefined;
+    if (entry) {
+      this.#entries.delete(key);
+      this.#entries.set(key, entry);
     }
-
-    this.#entries.delete(key);
-    this.#entries.set(key, entry);
 
     return entry;
   }
 
-  set(key: string, body: object): void {
+  isFresh(entry: CacheEntry): boolean {
+    return entry.expires > this.#now();
+  }
+
+  // A fresh entry, or `undefined`
+  getFresh(key: string): CacheEntry | undefined {
+    const entry: CacheEntry | undefined = this.get(key);
+
+    return entry && this.isFresh(entry) ? entry : undefined;
+  }
+
+  set(key: string, body: object, etag?: string): void {
     this.#entries.delete(key);
-    this.#entries.set(key, { body, expires: this.#now() + this.ttl * 1000 });
+    this.#entries.set(key, { body, expires: this.#now() + this.ttl * 1000, ...(etag ? { etag } : {}) });
 
     while (this.#entries.size > this.maxEntries) {
       this.#entries.delete(this.#entries.keys().next().value!);
