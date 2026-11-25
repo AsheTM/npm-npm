@@ -226,6 +226,29 @@ describe('registry (live)', () => {
     assert.ok(result.includes('angular-in-memory-web-api'));
   });
 
+  it('should revalidate a cached document with its ETag', async () => {
+    // GIVEN
+    let statuses: number[] = [];
+    const client: NpmClient = createNpmClient({
+      cache: { ttl: 0 },
+      fetch: async (input, init) => {
+        const response: Response = await fetch(input, init);
+
+        statuses = [...statuses, response.status];
+
+        return response;
+      },
+    });
+
+    // WHEN
+    const first: Packument = await client.getPackage('@ashetm/platform');
+    const second: Packument = await client.getPackage('@ashetm/platform');
+
+    // THEN
+    assert.deepEqual(statuses, [200, 304]);
+    assert.deepEqual(second, first);
+  });
+
   it('should work through a client', async () => {
     // GIVEN
     const client: NpmClient = createNpmClient({ registry: 'https://registry.npmjs.org/' });
