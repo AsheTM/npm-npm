@@ -1,5 +1,7 @@
 import { isServer } from '@ashetm/platform';
 
+import { CACHE } from './cache.ts';
+import type { ResponseCache } from './cache.ts';
 import { NpmApiError } from './error.ts';
 import type { NpmApiOptions, RetryOptions } from './options.ts';
 
@@ -144,9 +146,8 @@ const sleep: (seconds: number, signal?: AbortSignal) => Promise<void> = (seconds
     signal?.addEventListener('abort', onAbort, { once: true });
   });
 
-// GETs `url` and returns its JSON body (an object), or throws an `NpmApiError`; an abort is rethrown as is.
-// With the `retry` option, a 429 is retried after `Retry-After` (or an increasing delay).
-export const requestJson: <T extends object>(url: string, options?: NpmApiOptions, init?: RequestJsonInit) => Promise<T> = async <
+// `requestOnce`, retried on 429 with the `retry` option (after `Retry-After`, or an increasing delay)
+const requestWithRetry: <T extends object>(url: string, options?: NpmApiOptions, init?: RequestJsonInit) => Promise<T> = async <
   T extends object,
 >(
   url: string,
@@ -172,4 +173,61 @@ export const requestJson: <T extends object>(url: string, options?: NpmApiOption
       await sleep(wait, options?.signal);
     }
   }
+};
+
+// Options with a client's cache (see `CACHE`)
+type CachedOptions = NpmApiOptions & { [CACHE]?: ResponseCache };
+
+const fromCache: <T extends object>(cache: ResponseCache, key: string, request: () => Promise<T>, signal?: AbortSignal) => Promise<T> = async <
+  T extends object,
+>(
+  cache: ResponseCache,
+  key: string,
+  request: () => Promise<T>,
+  signal?: AbortSignal,
+): Promise<T> => {
+  const fresh: object | undefined = cache.getFresh(key)?.body;
+
+  if (fresh) {
+    return structuredClone(fresh) as T;
+  }
+
+  const pending: Promise<object> | undefined = cache.pending(key);
+
+  if (pending) {
+    try {
+      return structuredClone(await pending) as T;
+    } catch (error) {
+      // Another caller aborted: make our own request, unless we were aborted too
+      if (!isAbortError(error) || signal?.aborted) {
+        throw error;
+      }
+    }
+  }
+
+  const promise: Promise<T> = request();
+
+  cache.track(key, promise);
+
+  const body: T = await promise;
+
+  cache.set(key, body);
+
+  return structuredClone(body);
+};
+
+// GETs `url` and returns its JSON body (an object), or throws an `NpmApiError`; an abort is rethrown as is.
+// With the `retry` option, a 429 is retried; in a client with `cache`, successful responses are reused.
+export const requestJson: <T extends object>(url: string, options?: NpmApiOptions, init?: RequestJsonInit) => Promise<T> = (
+  url,
+  options,
+  init,
+) => {
+  const cache: ResponseCache | undefined = (options as CachedOptions | undefined)?.[CACHE];
+
+  if (!cache) {
+    return requestWithRetry(url, options, init);
+  }
+
+  return fromCache(cache, `${init?.accept ?? 'application/json'} ${url}`, () => requestWithRetry(url, options, init), options?.signal);
 };

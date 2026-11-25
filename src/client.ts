@@ -1,3 +1,5 @@
+import { CACHE, resolveCache } from './cache.ts';
+import type { CacheOptions, ResponseCache } from './cache.ts';
 import { getDownloads, getDownloadsBulk, getDownloadsRange } from './downloads.ts';
 import type { DownloadPeriod, DownloadsPoint, DownloadsRange } from './downloads.types.ts';
 import { getPeerDependencies, getTypesInfo, isDeprecated } from './helpers.ts';
@@ -9,9 +11,17 @@ import { searchPackages } from './search.ts';
 import type { SearchOptions, SearchQuery, SearchResult } from './search.types.ts';
 import { getOrgPackages, getUserPackages } from './users.ts';
 
+// `createNpmClient` options: the defaults for every call, plus the client's cache
+export interface NpmClientOptions extends NpmApiOptions {
+  // Reuse successful responses; off by default, `true` uses the default `CacheOptions`
+  cache?: boolean | CacheOptions;
+}
+
 // The functions with defaults applied; per-call options override them
 export interface NpmClient {
-  readonly defaults: Readonly<NpmApiOptions>;
+  readonly defaults: Readonly<NpmClientOptions>;
+  // Empties this client's cache (no effect without `cache`)
+  clearCache(): void;
   getPackage(name: string, options?: NpmApiOptions): Promise<Packument>;
   getAbbreviatedPackage(name: string, options?: NpmApiOptions): Promise<AbbreviatedPackument>;
   getVersion(name: string, versionOrTag: string, options?: NpmApiOptions): Promise<PackageVersion>;
@@ -54,12 +64,23 @@ const pickSearchOptions: (options?: SearchOptions) => SearchOptions = (options) 
 });
 
 // A client for a mirror registry, a custom `fetch`, shared headers...
-export const createNpmClient: (defaults?: NpmApiOptions) => NpmClient = (defaults = {}) => {
-  const frozen: Readonly<NpmApiOptions> = Object.freeze({ ...defaults, ...(defaults.headers ? { headers: { ...defaults.headers } } : {}) });
-  const withDefaults: (options?: NpmApiOptions) => NpmApiOptions = (options) => mergeOptions(frozen, options);
+export const createNpmClient: (defaults?: NpmClientOptions) => NpmClient = (defaults = {}) => {
+  const frozen: Readonly<NpmClientOptions> = Object.freeze({
+    ...defaults,
+    ...(defaults.headers ? { headers: { ...defaults.headers } } : {}),
+    ...(typeof defaults.cache === 'object' ? { cache: Object.freeze({ ...defaults.cache }) } : {}),
+  });
+  const { cache: _cache, ...requestDefaults }: NpmClientOptions = frozen;
+  const store: ResponseCache | undefined = resolveCache(frozen.cache);
+  const withDefaults: (options?: NpmApiOptions) => NpmApiOptions = (options) => {
+    const merged: NpmApiOptions = mergeOptions(requestDefaults, options);
+
+    return store ? { ...merged, [CACHE]: store } : merged;
+  };
 
   return {
     defaults: frozen,
+    clearCache: () => store?.clear(),
     getPackage: (name, options) => getPackage(name, withDefaults(options)),
     getAbbreviatedPackage: (name, options) => getAbbreviatedPackage(name, withDefaults(options)),
     getVersion: (name, versionOrTag, options) => getVersion(name, versionOrTag, withDefaults(options)),
