@@ -261,6 +261,35 @@ await npm.getLatestVersion('react');
 await npm.getPackage('react', { signal: AbortSignal.timeout(5_000) });
 ```
 
+### Cache
+
+A client can keep successful responses in memory, so the same call doesn't hit npm again:
+
+```ts
+import { createNpmClient } from '@ashetm/npm';
+
+const npm = createNpmClient({ cache: true });
+
+await npm.getLatestVersion('react'); // request, kept for 5 minutes
+await npm.getLatestVersion('react'); // from the cache, no request
+
+npm.clearCache(); // the next calls go to npm again
+```
+
+| `CacheOptions` | Default | Description                                                                                       |
+|----------------|---------|---------------------------------------------------------------------------------------------------|
+| `ttl`          | `300`   | Seconds a response is reused without a request (the same as npm's `max-age`).                     |
+| `maxEntries`   | `500`   | When the cache is full, the least recently used response is dropped.                              |
+| `etag`         | `true`  | After `ttl`, ask the registry with `If-None-Match`. If nothing changed (304), the cached response is reused for another `ttl` without downloading it again. Server only. |
+
+- The cache is off by default. Each client has its own cache, and the standalone functions never cache.
+- A request is identified by its URL and `Accept` header, so the full and abbreviated documents are cached apart.
+- Only successful responses are stored: errors (`'not-found'`, `'rate-limited'`...) never are.
+- Identical calls made at the same time share one request. If the caller that started it aborts, the others make their own request.
+- Each call gets its own copy of the response, so changing a result doesn't change the cache.
+- `clearCache()` empties the client's cache, for example right after you publish.
+- ETag revalidation is server only. Browsers can't send `If-None-Match` to the registry (the CORS preflight fails), but their own HTTP cache does the same thing. The downloads API sends no `etag`, so download counts are just requested again after `ttl`.
+
 ### Errors
 
 Every function throws an `NpmApiError` (it extends `Error`) when it cannot return the expected data:
@@ -317,7 +346,7 @@ export class PackageComponent {
 
 ## Types
 
-All the types are exported: `NpmApiOptions`, `RetryOptions`, `NpmApiError`, `NpmApiErrorCode`, `NpmClient`, `Packument`, `AbbreviatedPackument`, `PackageVersion`, `AbbreviatedVersion`, `VersionBase`, `DistTags`, `Dist`, `DistSignature`, `PackumentTime`, `PeerDependencyMeta`, `Person`, `Repository`, `Bugs`, `SearchQuery`, `SearchOptions`, `SearchResult`, `SearchObject`, `SearchPackage`, `SearchPackageLinks`, `SearchScore`, `SearchUser`, `DownloadPeriod`, `NamedDownloadPeriod`, `DownloadDate`, `DownloadsPoint`, `DownloadsRange`, `DailyDownloads`, `PeerDependency`, `TypesInfo`, `TypesSource`.
+All the types are exported: `NpmApiOptions`, `RetryOptions`, `NpmApiError`, `NpmApiErrorCode`, `NpmClient`, `NpmClientOptions`, `CacheOptions`, `Packument`, `AbbreviatedPackument`, `PackageVersion`, `AbbreviatedVersion`, `VersionBase`, `DistTags`, `Dist`, `DistSignature`, `PackumentTime`, `PeerDependencyMeta`, `Person`, `Repository`, `Bugs`, `SearchQuery`, `SearchOptions`, `SearchResult`, `SearchObject`, `SearchPackage`, `SearchPackageLinks`, `SearchScore`, `SearchUser`, `DownloadPeriod`, `NamedDownloadPeriod`, `DownloadDate`, `DownloadsPoint`, `DownloadsRange`, `DailyDownloads`, `PeerDependency`, `TypesInfo`, `TypesSource`.
 
 ## Development
 
