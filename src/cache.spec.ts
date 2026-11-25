@@ -25,7 +25,8 @@ describe('ResponseCache', () => {
     const cache: ResponseCache = new ResponseCache();
 
     // THEN
-    assert.deepEqual(DEFAULT_CACHE, { ttl: 300, maxEntries: 500 });
+    assert.deepEqual(DEFAULT_CACHE, { ttl: 300, maxEntries: 500, etag: true });
+    assert.equal(cache.etag, true);
     assert.equal(cache.ttl, 300);
     assert.equal(cache.maxEntries, 500);
   });
